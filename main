@@ -1,1 +1,109 @@
+package stereo;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
+
+import java.io.*;
+
+import javax.imageio.ImageIO;
+import javax.swing.JFrame;
+
+public class Pixel {
+
+	   BufferedImage image1;
+	   BufferedImage image2;
+	   
+	   public Pixel() {
+	      try {
+	         File depthmap = new File("dm.jpg");	//read depth map
+	         image1 = ImageIO.read(depthmap);
+	         File mozaic = new File("st3.jpg");		//read background image
+	         image2 = ImageIO.read(mozaic);
+	         
+	         int maxwidth = image1.getWidth();				//get size of used images
+	         int maxheight = image1.getHeight();
+	         int patternwidth = image2.getWidth();
+	         int patternheight = image2.getHeight();
+
+	         System.out.println("depth map width=" +maxwidth );			//plot data
+	         System.out.println("depth map height=" + maxheight);
+	         System.out.println("mozaic width=" +patternwidth );
+	         System.out.println("mozaic height=" + patternheight);
+	         
+	         int [] lookL = new int [maxwidth];
+	         Color [] colr= new Color [maxwidth];
+	         int sep, x, y, left, right;
+	         int eyesep=280, obsdist=1000;								// distance between eyes, and view distsance from screen  
+	         double z, zmax=0, zmin=256, scale, maxsep;
+	         
+	         for(y=0; y<maxheight; y++){								//check up of depthmap, to get important parameters for furher calculations
+	        	 for(x=0; x<maxwidth; x++){
+	        		 Color c = new Color(image1.getRGB(x, y));
+	        		 z=((c.getRed()*0.299)+(c.getBlue()*0.114)+(c.getGreen()*0.587));
+	        		 if (z>zmax) zmax=z;
+	        		 if (z<zmin) zmin=z;
+	        		 
+	        	 }
+	         }
+	        scale=150/(zmax-zmin);
+	        maxsep=zmax*eyesep/(obsdist+zmax);
+	        
+	        if(patternwidth<maxsep) System.out.println("width of the pattern is too small");			//conditions of proper preformance of the program
+	        if(patternheight<maxheight) System.out.println("height of the pattern is too small");
+
+	         for(y=0; y<maxheight; y++){						//image procesing
+	         
+	            for(x=0; x<maxwidth; x++){
+	            lookL[x]=x;										//link points to themselves
+	            }
+	            
+	            for(x=0;x<maxwidth; x++)						//linking points representing thesame point from depthmap
+	            {
+	            Color c = new Color(image1.getRGB(x, y));					
+	            z=350-scale*((c.getRed()*0.299)+(c.getBlue()*0.114)+(c.getGreen()*0.587));
+	            sep=(int)(((long)eyesep*z)/(z+obsdist));
+	            left=x-(sep/2);
+	            right=left+sep;
+	            if((left>0)&&(right<maxwidth)) 
+	            	{
+	            	lookL[right]=left;
+	            	}
+	            }
+	            
+	            int lastlinked=-10;
+	            for(x=0; x<maxwidth; x++)								//applying pattern 
+	            {
+	            	if(lookL[x]==x)
+	            	{
+	            		if(lastlinked==(x-1)) colr[x]=colr[x-1];
+	            		else{
+	            			colr[x]=new Color(image2.getRGB(x,y));
+	            		}
+	            	}
+	            	else{
+	            		colr[x]=colr[lookL[x]];
+	            		lastlinked=x;
+	            	}
+	            }	
+	            
+	            for (x=0; x<maxwidth;x++)							//creating image
+	            {	
+	            	image1.setRGB(x, y, colr[x].getRGB());
+	            }
+	         }
+	         
+	  
+	         File output = new File("wynik.jpg");				//printing stereogram to working directory
+	         ImageIO.write(image1,"jpg",output);
+	      
+	    
+	         
+	         
+	      } catch (Exception e) {}
+	   }
+	   
+	   static public void main(String args[]) throws Exception 
+	   {
+	      Pixel obj = new Pixel();
+	   }
+}
